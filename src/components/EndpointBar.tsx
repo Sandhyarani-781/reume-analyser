@@ -6,18 +6,20 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   SlidersHorizontal, 
-  Info,
-  Copy,
-  Check
+  Copy, 
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Sparkles
 } from 'lucide-react';
 import { EndpointStatus } from '../types/n8n';
-import { DEFAULT_N8N_TEST_URL, DEFAULT_N8N_PROD_URL } from '../constants/presets';
 
 interface EndpointBarProps {
   targetUrl: string;
   setTargetUrl: (url: string) => void;
   status: EndpointStatus;
   onRefreshStatus: () => void;
+  isDevMode: boolean;
 }
 
 export const EndpointBar: React.FC<EndpointBarProps> = ({
@@ -25,10 +27,12 @@ export const EndpointBar: React.FC<EndpointBarProps> = ({
   setTargetUrl,
   status,
   onRefreshStatus,
+  isDevMode,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempUrl, setTempUrl] = useState(targetUrl);
   const [copied, setCopied] = useState(false);
+  const [showConfig, setShowConfig] = useState(isDevMode);
 
   const isTest = targetUrl.includes('/form-test/');
   const isProd = targetUrl.includes('/form/') && !targetUrl.includes('/form-test/');
@@ -60,138 +64,141 @@ export const EndpointBar: React.FC<EndpointBarProps> = ({
   };
 
   return (
-    <div className="bg-slate-900 border-b border-slate-800 py-3 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto flex flex-col gap-3">
+    <div className="bg-slate-900/60 border-b border-slate-800/80 py-2.5 px-4 sm:px-6 lg:px-8 text-xs">
+      <div className="max-w-7xl mx-auto flex flex-col gap-2.5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Target URL Badge & Switcher */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1 min-w-[280px]">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
-              <Globe className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Target URL:</span>
-            </div>
+          {/* Friendly Workflow Indicator */}
+          <div className="flex items-center gap-2 text-slate-300">
+            <span className="flex items-center gap-1.5 font-medium text-slate-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span>Target Workflow:</span>
+            </span>
+            <span className="font-mono text-cyan-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+              sandhyarani-781.app.n8n.cloud
+            </span>
 
-            {/* Quick Test / Prod mode tabs */}
-            <div className="inline-flex rounded-md p-0.5 bg-slate-950 border border-slate-800 text-xs">
+            {/* Test vs Production Mode Switcher */}
+            <div className="inline-flex rounded-lg p-0.5 bg-slate-950 border border-slate-800 text-[11px] ml-2">
               <button
                 type="button"
                 onClick={handleSwitchToTest}
-                className={`px-2.5 py-1 rounded font-medium transition-all ${
+                className={`px-2 py-0.5 rounded font-medium transition-all ${
                   isTest
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                    ? 'bg-amber-500/20 text-amber-300 font-semibold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
-                title="Use n8n Test Form URL (/form-test/...)"
+                title="Test mode for single executions"
               >
                 Test Mode
               </button>
               <button
                 type="button"
                 onClick={handleSwitchToProd}
-                className={`px-2.5 py-1 rounded font-medium transition-all ${
+                className={`px-2 py-0.5 rounded font-medium transition-all ${
                   isProd
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    ? 'bg-emerald-500/20 text-emerald-300 font-semibold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
-                title="Use n8n Production Form URL (/form/...)"
+                title="Production mode for continuous 24/7 processing"
               >
-                Production Mode
+                Live Production
               </button>
             </div>
-
-            {/* URL String Display & Quick Actions */}
-            {!isEditing ? (
-              <div className="flex items-center gap-1.5 bg-slate-950/70 border border-slate-800 rounded px-2.5 py-1 text-xs font-mono text-slate-300 max-w-full sm:max-w-md md:max-w-lg truncate">
-                <span className="truncate">{targetUrl}</span>
-                <button
-                  onClick={copyUrl}
-                  className="text-slate-500 hover:text-slate-300 p-0.5 rounded transition-colors ml-1"
-                  title="Copy URL"
-                >
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={() => {
-                    setTempUrl(targetUrl);
-                    setIsEditing(true);
-                  }}
-                  className="text-slate-500 hover:text-slate-300 p-0.5 rounded transition-colors"
-                  title="Edit custom endpoint"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSaveCustom} className="flex items-center gap-2 flex-1 max-w-lg">
-                <input
-                  type="url"
-                  value={tempUrl}
-                  onChange={(e) => setTempUrl(e.target.value)}
-                  className="bg-slate-950 border border-indigo-500/50 rounded px-2.5 py-1 text-xs font-mono text-white flex-1 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  placeholder="https://...app.n8n.cloud/form/..."
-                  required
-                />
-                <button
-                  type="submit"
-                  className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium"
-                >
-                  Apply
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
-                >
-                  Cancel
-                </button>
-              </form>
-            )}
           </div>
 
-          {/* Quick Ping / Refresh */}
+          {/* Quick Expand Toggle for URL Editing */}
           <div className="flex items-center gap-2">
             <button
-              onClick={onRefreshStatus}
-              disabled={status.checking}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors disabled:opacity-60"
+              onClick={() => setShowConfig(!showConfig)}
+              className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-200 transition-colors py-1 px-1.5"
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-slate-300 ${status.checking ? 'animate-spin' : ''}`} />
-              <span>{status.checking ? 'Checking Endpoint...' : 'Ping Endpoint'}</span>
+              <span>{showConfig ? 'Hide Endpoint Details' : 'Configure Endpoint URL'}</span>
+              {showConfig ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </button>
           </div>
         </div>
 
-        {/* Diagnostic Banner if listening prompt is active */}
-        {status.isListeningPrompt && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">
-            <div className="flex items-start sm:items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
-              <div>
-                <span className="font-semibold text-amber-300">n8n Form Trigger Waiting for Execution: </span>
-                <span className="text-amber-200/90">
-                  Your n8n test node is currently idle. In your n8n workflow editor, click <strong>"Execute step"</strong> (or activate the workflow) so it catches incoming form submissions.
-                </span>
-              </div>
+        {/* Detailed Configuration Drawer (When toggled or in dev mode) */}
+        {(showConfig || isDevMode) && (
+          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in duration-150">
+            <div className="flex items-center gap-2 flex-1 min-w-[280px]">
+              <span className="text-slate-400 shrink-0 font-medium">Endpoint URL:</span>
+              {!isEditing ? (
+                <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-300 max-w-full sm:max-w-md truncate">
+                  <span className="truncate">{targetUrl}</span>
+                  <button
+                    onClick={copyUrl}
+                    className="text-slate-400 hover:text-white p-0.5 rounded ml-1"
+                    title="Copy URL"
+                  >
+                    {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTempUrl(targetUrl);
+                      setIsEditing(true);
+                    }}
+                    className="text-slate-400 hover:text-white p-0.5 rounded ml-0.5"
+                    title="Edit custom URL"
+                  >
+                    <SlidersHorizontal className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveCustom} className="flex items-center gap-2 flex-1 max-w-md">
+                  <input
+                    type="url"
+                    value={tempUrl}
+                    onChange={(e) => setTempUrl(e.target.value)}
+                    className="bg-slate-900 border border-[#EA4B71] rounded px-2 py-1 text-xs font-mono text-white flex-1 focus:outline-none"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="px-2.5 py-1 rounded bg-[#EA4B71] text-white text-xs font-semibold"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs"
+                  >
+                    Cancel
+                  </button>
+                </form>
+              )}
             </div>
-            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-              <a
-                href="https://sandhyarani-781.app.n8n.cloud"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-semibold text-amber-300 hover:text-amber-100 underline decoration-amber-400/50 underline-offset-2"
-              >
-                <span>Open n8n Editor</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
+
+            <button
+              onClick={onRefreshStatus}
+              disabled={status.checking}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors shrink-0"
+            >
+              <RefreshCw className={`w-3 h-3 ${status.checking ? 'animate-spin' : ''}`} />
+              <span>{status.checking ? 'Testing...' : 'Test Connection'}</span>
+            </button>
           </div>
         )}
 
-        {status.isReady && (
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>
-              <strong>n8n Endpoint Active &amp; Ready:</strong> Successfully responded with HTTP 200. Submissions will be processed immediately.
-            </span>
+        {/* Friendly Helpful Tip Banner if n8n Form is waiting */}
+        {status.isListeningPrompt && (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>
+                <strong>Tip for testing:</strong> Your workflow is ready. In n8n, click <strong>"Execute step"</strong> on your Form Trigger to view live test submissions.
+              </span>
+            </div>
+            <a
+              href="https://sandhyarani-781.app.n8n.cloud"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-semibold text-amber-300 hover:text-white underline underline-offset-2 shrink-0 self-end sm:self-auto"
+            >
+              <span>Open in n8n Cloud</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
         )}
       </div>

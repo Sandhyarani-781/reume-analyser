@@ -11,7 +11,10 @@ import {
   X, 
   Copy, 
   Check,
-  Search
+  Search,
+  FileText,
+  Clock,
+  Send
 } from 'lucide-react';
 import { SubmissionLogItem } from '../types/n8n';
 import { downloadJsonFile } from '../utils/curlGenerator';
@@ -20,12 +23,14 @@ interface SubmissionHistoryProps {
   history: SubmissionLogItem[];
   onClearHistory: () => void;
   onRetry: (item: SubmissionLogItem) => Promise<void>;
+  onGoToSubmit: () => void;
 }
 
 export const SubmissionHistory: React.FC<SubmissionHistoryProps> = ({
   history,
   onClearHistory,
   onRetry,
+  onGoToSubmit,
 }) => {
   const [selectedItem, setSelectedItem] = useState<SubmissionLogItem | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -36,8 +41,7 @@ export const SubmissionHistory: React.FC<SubmissionHistoryProps> = ({
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     const payloadStr = JSON.stringify(item.payload).toLowerCase();
-    const urlStr = item.targetUrl.toLowerCase();
-    return payloadStr.includes(term) || urlStr.includes(term);
+    return payloadStr.includes(term);
   });
 
   const handleCopyPayload = (item: SubmissionLogItem) => {
@@ -56,265 +60,243 @@ export const SubmissionHistory: React.FC<SubmissionHistoryProps> = ({
   };
 
   const handleExport = () => {
-    downloadJsonFile(`n8n-submission-log-${new Date().toISOString().slice(0, 10)}.json`, history);
+    downloadJsonFile(`submissions-${new Date().toISOString().slice(0, 10)}.json`, history);
+  };
+
+  const formatTimestamp = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + 
+        ' · ' + d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    } catch {
+      return iso;
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* Friendly Header */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-white">Submission History &amp; Audit Log</h2>
-            <span className="text-xs px-2 py-0.5 rounded font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-              {history.length} Entries Logged
+            <h2 className="text-xl font-bold text-white tracking-tight">Your Submissions &amp; Activity</h2>
+            <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+              {history.length} {history.length === 1 ? 'submission' : 'submissions'}
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Track all automated form submissions dispatched to your n8n workflow with full timestamps and response receipts.
+            Review past submissions, check delivery receipts, or re-send entries anytime.
           </p>
         </div>
 
         <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
-          <button
-            onClick={handleExport}
-            disabled={history.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors disabled:opacity-50"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export JSON</span>
-          </button>
-          <button
-            onClick={onClearHistory}
-            disabled={history.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 transition-colors disabled:opacity-50"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Clear Log</span>
-          </button>
+          {history.length > 0 && (
+            <>
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export Data</span>
+              </button>
+              <button
+                onClick={onClearHistory}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Clear</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Filter Bar */}
       {history.length > 0 && (
         <div className="relative">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search submission payloads, emails, names, or target URLs..."
-            className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            placeholder="Search by name, email, target role, or message..."
+            className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#EA4B71]"
           />
         </div>
       )}
 
-      {/* History Table or Empty State */}
+      {/* History Cards / Table */}
       {history.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">
-          <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-500">
-            <History className="w-6 h-6" />
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mx-auto mb-4 text-slate-400 shadow-md">
+            <History className="w-7 h-7" />
           </div>
-          <h3 className="text-sm font-semibold text-white">No submissions recorded yet</h3>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
-            Submit a form from the Portal Form tab or dispatch a payload from the Inspector to see live audit logs here.
+          <h3 className="text-base font-bold text-white">No submissions yet</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
+            Ready to test? Fill out the friendly intake form to see your submission activity and delivery confirmation recorded here.
           </p>
+          <button
+            onClick={onGoToSubmit}
+            className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#EA4B71] to-[#FF6D5A] text-white shadow-lg shadow-[#EA4B71]/20 hover:scale-[1.02] transition-all"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>Go to Submit Form</span>
+          </button>
         </div>
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase tracking-wider text-[10px]">
-                <tr>
-                  <th className="py-3 px-4 font-semibold">Status</th>
-                  <th className="py-3 px-4 font-semibold">Timestamp</th>
-                  <th className="py-3 px-4 font-semibold">Payload Summary</th>
-                  <th className="py-3 px-4 font-semibold">Duration</th>
-                  <th className="py-3 px-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 font-sans">
-                {filteredHistory.map((item) => {
-                  const summaryText = Object.entries(item.payload)
-                    .slice(0, 3)
-                    .map(([k, v]) => `${k}: ${typeof v === 'object' ? '...' : String(v)}`)
-                    .join(' · ');
+        <div className="space-y-3">
+          {filteredHistory.map((item) => {
+            const candidateName = item.payload.candidateName || item.payload.fullName || item.payload.clientName || item.payload.requesterName || 'Submission';
+            const email = item.payload.email;
+            const targetRole = item.payload.targetRole || item.payload.inquiryType || item.payload.issueSummary;
 
-                  return (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-slate-850/50 transition-colors group cursor-pointer"
-                      onClick={() => setSelectedItem(item)}
-                    >
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        {item.isListeningPrompt ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                            <AlertTriangle className="w-3 h-3" />
-                            Awaiting Step (404)
-                          </span>
-                        ) : item.success ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                            <CheckCircle2 className="w-3 h-3" />
-                            {item.status || 200} OK
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-rose-500/10 text-rose-300 border border-rose-500/20">
-                            <AlertCircle className="w-3 h-3" />
-                            {item.status ? `${item.status} Err` : 'Failed'}
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="py-3 px-4 whitespace-nowrap text-slate-300 font-mono text-[11px]">
-                        {new Date(item.timestamp).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                        })}
-                      </td>
-
-                      <td className="py-3 px-4 text-slate-300 max-w-xs md:max-w-md truncate">
-                        <span className="text-slate-200 font-medium">
-                          {summaryText || 'Empty payload'}
+            return (
+              <div
+                key={item.id}
+                onClick={() => setSelectedItem(item)}
+                className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer transition-all hover:bg-slate-850"
+              >
+                <div className="flex items-start sm:items-center gap-3.5">
+                  <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 shrink-0">
+                    <FileText className="w-5 h-5 text-indigo-400" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-sm text-white">{candidateName}</span>
+                      {targetRole && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-medium">
+                          {targetRole}
                         </span>
-                      </td>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 mt-1">
+                      {email && <span>{email}</span>}
+                      <span>·</span>
+                      <span className="flex items-center gap-1 font-mono text-[11px]">
+                        <Clock className="w-3 h-3 text-slate-500" />
+                        {formatTimestamp(item.timestamp)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-                      <td className="py-3 px-4 whitespace-nowrap text-slate-400 font-mono text-[11px]">
-                        {item.durationMs ? `${item.durationMs}ms` : '—'}
-                      </td>
+                <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
+                  {/* Status Indicator */}
+                  {item.isListeningPrompt ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                      <AlertTriangle className="w-3 h-3" />
+                      Awaiting Test Run
+                    </span>
+                  ) : item.success ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Delivered ({item.durationMs}ms)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/25">
+                      <AlertCircle className="w-3 h-3" />
+                      Error
+                    </span>
+                  )}
 
-                      <td
-                        className="py-3 px-4 whitespace-nowrap text-right"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleCopyPayload(item)}
-                            title="Copy payload JSON"
-                            className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                          >
-                            {copiedId === item.id ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-
-                          <button
-                            onClick={() => handleRetryItem(item)}
-                            disabled={retryingId === item.id}
-                            title="Re-send submission to n8n"
-                            className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
-                          >
-                            <RotateCw
-                              className={`w-3.5 h-3.5 ${
-                                retryingId === item.id ? 'animate-spin text-cyan-400' : ''
-                              }`}
-                            />
-                          </button>
-
-                          <button
-                            onClick={() => setSelectedItem(item)}
-                            title="View Full Details"
-                            className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => handleRetryItem(item)}
+                      disabled={retryingId === item.id}
+                      title="Re-send submission"
+                      className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                    >
+                      <RotateCw
+                        className={`w-4 h-4 ${retryingId === item.id ? 'animate-spin text-cyan-400' : ''}`}
+                      />
+                    </button>
+                    <button
+                      onClick={() => setSelectedItem(item)}
+                      title="View details"
+                      className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* Details Modal */}
       {selectedItem && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden text-slate-100">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/70">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden text-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950">
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-semibold text-white">Submission Log Details</h3>
-                <span className="text-xs font-mono text-slate-400">
-                  {new Date(selectedItem.timestamp).toLocaleString()}
-                </span>
+                <FileText className="w-5 h-5 text-indigo-400" />
+                <h3 className="text-base font-bold text-white">Submission Summary</h3>
               </div>
               <button
                 onClick={() => setSelectedItem(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-md"
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                  Target Endpoint
-                </label>
-                <div className="p-2 rounded bg-slate-950 font-mono text-xs text-slate-300 break-all select-all">
-                  {selectedItem.targetUrl}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded bg-slate-950/80 border border-slate-800">
-                  <span className="text-slate-400 block text-[11px]">HTTP Status</span>
-                  <span className="font-semibold text-white mt-1 block">
-                    {selectedItem.status || 'Failed'} ({selectedItem.statusText || 'N/A'})
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
+              <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-slate-400 text-[11px] block">Dispatched At:</span>
+                  <span className="font-semibold text-white mt-0.5 block">
+                    {formatTimestamp(selectedItem.timestamp)}
                   </span>
                 </div>
-                <div className="p-3 rounded bg-slate-950/80 border border-slate-800">
-                  <span className="text-slate-400 block text-[11px]">Round-trip Duration</span>
-                  <span className="font-semibold text-white mt-1 block font-mono">
-                    {selectedItem.durationMs ? `${selectedItem.durationMs}ms` : 'N/A'}
+                <div>
+                  <span className="text-slate-400 text-[11px] block">Execution Duration:</span>
+                  <span className="font-semibold text-white mt-0.5 block font-mono">
+                    {selectedItem.durationMs ? `${selectedItem.durationMs}ms` : 'Instant'}
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                  Dispatched Payload (JSON)
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Submitted Information
                 </label>
-                <pre className="p-3 rounded bg-slate-950 font-mono text-xs text-cyan-300 max-h-52 overflow-y-auto select-all">
-                  {JSON.stringify(selectedItem.payload, null, 2)}
-                </pre>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                  Response Body from n8n
-                </label>
-                <pre className="p-3 rounded bg-slate-950 font-mono text-xs text-slate-300 max-h-48 overflow-y-auto select-all">
-                  {typeof selectedItem.responseData === 'object'
-                    ? JSON.stringify(selectedItem.responseData, null, 2)
-                    : String(selectedItem.responseData || 'No response data')}
-                </pre>
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2.5">
+                  {Object.entries(selectedItem.payload).map(([k, v]) => {
+                    if (k.startsWith('_')) return null; // skip internal meta
+                    return (
+                      <div key={k} className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 border-b border-slate-900 pb-2 last:border-0 last:pb-0">
+                        <span className="font-medium text-slate-400 capitalize">{k.replace(/([A-Z])/g, ' $1')}:</span>
+                        <span className="text-white font-medium max-w-sm break-words sm:text-right">
+                          {typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v || '—')}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-6 py-3 border-t border-slate-800 bg-slate-950/80">
+            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-950">
               <button
                 onClick={() => handleCopyPayload(selectedItem)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition-colors"
               >
-                <Copy className="w-3.5 h-3.5" />
-                <span>Copy Payload</span>
+                {copiedId === selectedItem.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>Copy Summary</span>
               </button>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleRetryItem(selectedItem)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#EA4B71] hover:bg-[#d43f63] text-xs font-semibold text-white transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#EA4B71] hover:bg-[#d43f63] text-xs font-bold text-white transition-colors"
                 >
                   <RotateCw className="w-3.5 h-3.5" />
-                  <span>Re-send to n8n</span>
+                  <span>Re-send to Workflow</span>
                 </button>
                 <button
                   onClick={() => setSelectedItem(null)}
-                  className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300"
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300"
                 >
                   Close
                 </button>
