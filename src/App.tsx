@@ -245,19 +245,73 @@ export default function App() {
         checkStatus();
         return item;
       } catch (err: any) {
-        const item: SubmissionLogItem = {
-          id,
-          timestamp,
-          targetUrl,
-          format,
-          payload: { ...formData },
-          status: 0,
-          durationMs: Date.now() - startTime,
-          success: false,
-          error: err.message || 'Network error communicating with backend relay',
-        };
-        setHistory((prev) => [item, ...prev]);
-        return item;
+        // Automatic fallback to direct client-side fetch if relay is unavailable (e.g. purely static Vercel deployment)
+        try {
+          let body: string;
+          const headers: Record<string, string> = {
+            'Accept': 'application/json, text/html, */*',
+          };
+          if (format === 'form-urlencoded') {
+            const params = new URLSearchParams();
+            Object.entries(formData).forEach(([k, v]) => {
+              if (v !== undefined && v !== null) {
+                params.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+              }
+            });
+            body = params.toString();
+            headers['Content-Type'] = 'application/x-www-form-urlencoded';
+          } else {
+            body = JSON.stringify(formData);
+            headers['Content-Type'] = 'application/json';
+          }
+
+          const res = await fetch(targetUrl, {
+            method: 'POST',
+            headers,
+            body,
+            mode: 'cors',
+          });
+
+          const durationMs = Date.now() - startTime;
+          const text = await res.text();
+          let parsed = text;
+          try {
+            parsed = JSON.parse(text);
+          } catch {
+            // ignore
+          }
+
+          const fallbackItem: SubmissionLogItem = {
+            id,
+            timestamp,
+            targetUrl,
+            format,
+            payload: { ...formData },
+            status: res.status,
+            statusText: res.statusText,
+            durationMs,
+            success: res.ok,
+            isListeningPrompt: text.includes("Form Trigger isn't listening yet"),
+            responseData: parsed,
+          };
+          setHistory((prev) => [fallbackItem, ...prev]);
+          checkStatus();
+          return fallbackItem;
+        } catch (directErr: any) {
+          const item: SubmissionLogItem = {
+            id,
+            timestamp,
+            targetUrl,
+            format,
+            payload: { ...formData },
+            status: 0,
+            durationMs: Date.now() - startTime,
+            success: false,
+            error: `Relay: ${err.message}. Direct fallback: ${directErr.message}`,
+          };
+          setHistory((prev) => [item, ...prev]);
+          return item;
+        }
       }
     } else {
       // Direct client-side fetch to n8n
