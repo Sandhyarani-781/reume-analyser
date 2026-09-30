@@ -1,0 +1,6 @@
+{
+  "name": "n8n Connect Hub & Smart Portal",
+  "description": "Modern, responsive web portal and automation hub seamlessly connected to your n8n workflow for effortless form submissions, real-time testing, and data orchestration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
